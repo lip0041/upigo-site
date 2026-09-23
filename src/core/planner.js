@@ -46,3 +46,16 @@ export function migrateLegacy(raw, catalog) {
   }
   return state;
 }
+
+/** Add newly published readings to the built-in route without replacing user edits. */
+export function refreshExampleReadings(state, catalog) {
+  const next=structuredClone(state);
+  for(const goal of next.goals){
+    if(goal.id!==catalog.example.id || goal.origin!=='curated-example')continue;
+    for(const stage of goal.stages){
+      const published=catalog.example.stages.find(item=>item.id===stage.id);
+      if(published)stage.contentIds=[...new Set([...published.contentIds,...stage.contentIds])];
+    }
+  }
+  return next;
+}

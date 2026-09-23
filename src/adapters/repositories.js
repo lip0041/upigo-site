@@ -1,11 +1,11 @@
 import { validateState } from '../core/model.js';
-import { migrateLegacy, initialState } from '../core/planner.js';
+import { migrateLegacy, initialState, refreshExampleReadings } from '../core/planner.js';
 const KEY = 'upigo.state.v2';
 export class BrowserRepository {
   constructor(storage = localStorage) { this.storage = storage; this.mode = 'browser'; }
   async load(catalog) {
     const raw = this.storage.getItem(KEY);
-    if (raw) return validateState(JSON.parse(raw));
+    if (raw) return validateState(refreshExampleReadings(JSON.parse(raw),catalog));
     const old = this.storage.getItem('upigo.prototype.v1');
     const state = old ? migrateLegacy(JSON.parse(old), catalog) : initialState(catalog);
     this.storage.setItem(KEY, JSON.stringify(state)); return state;
@@ -23,7 +23,7 @@ export class HttpRepository {
     const response = await fetch(this.base, {cache:'no-store'});
     if (response.status === 404) return initialState(catalog);
     if (!response.ok) throw new Error('无法读取本地记录');
-    return validateState(await response.json());
+    return validateState(refreshExampleReadings(await response.json(),catalog));
   }
   async save(state, expectedRevision) {
     const response = await fetch(this.base, { method: 'PUT', headers: {'Content-Type':'application/json','If-Match':String(expectedRevision)}, body:JSON.stringify(state) });

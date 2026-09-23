@@ -23,7 +23,7 @@ export function recommendLesson(state, goal, catalog) {
   const entries=goal.stages[goal.activeStage].contentIds.map(id=>catalog.lessons[id]).filter(Boolean).map(lesson=>{
     const progress=getProgress(state,goal.id,lesson.id),attempt=attemptFor(progress,lesson);
     const retry=attempt && attempt.choice!==lesson.practice.answer;
-    const reason=retry?'上次自测卡在这里，先回看解释，再重新自测。':progress.feedback==='没看懂'?'你反馈还没看懂，先把这个问题弄清楚。':!progress.read?'这一阶段还没读过，从这里开始。':lesson.practice&&!attempt?'已经读过，试着不看讲解回答一题。':null;
+    const reason=retry?'上次自测卡在这里，先回看解释，再重新自测。':progress.feedback==='没看懂'?'你反馈还没看懂，先把这个问题弄清楚。':!progress.read?'这一阶段还没读过，从这里开始。':null;
     return {lesson,reason,depth:retry?'explanation':progress.feedback==='没看懂'?'overview':undefined,rank:retry||progress.feedback==='没看懂'?0:!progress.read?1:reason?2:3};
   }).filter(item=>item.reason);
   entries.sort((a,b)=>a.rank-b.rank || Number(a.lesson.minutes>goal.dailyMinutes)-Number(b.lesson.minutes>goal.dailyMinutes));
