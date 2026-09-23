@@ -42,6 +42,10 @@ export function validateState(state) {
     check(record && typeof record === 'object', '进度记录无效');
     check(typeof record.saved === 'boolean' && typeof record.read === 'boolean', '阅读状态无效');
     check(typeof record.note === 'string' && record.note.length <= 10000, '笔记过长');
+    if (record.attempt !== undefined) {
+      const a=record.attempt;
+      check(a && SAFE_ID.test(a.practiceId) && Number.isInteger(a.choice) && a.choice>=0 && a.choice<5 && typeof a.answeredAt==='string' && Number.isFinite(Date.parse(a.answeredAt)), '自测记录无效');
+    }
     check(record.feedback === null || FEEDBACK.includes(record.feedback), '反馈无效');
   }
   return state;
