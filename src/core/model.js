@@ -1,3 +1,4 @@
+import {validateCoach} from './coach.js';
 export const SCHEMA_VERSION = 2;
 export const DEPTHS = ['overview', 'explanation', 'deep'];
 export const FEEDBACK = ['太基础', '刚好', '没看懂'];
@@ -8,6 +9,7 @@ export function text(value, name, max = 2000) {
   return value.trim();
 }
 export function validateState(state) {
+  if(state?.coach!==undefined)validateCoach(state.coach);
   check(state && state.schemaVersion === SCHEMA_VERSION, '记录版本不兼容');
   check(Number.isInteger(state.revision) && state.revision >= 0, '记录版本号无效');
   check(Array.isArray(state.goals) && state.goals.length >= 1 && state.goals.length <= 100, '目标数量无效');
