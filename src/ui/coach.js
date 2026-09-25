@@ -10,34 +10,34 @@ const active=()=>{const c=readState()?.coach;return c?.sessions.find(s=>s.id===c
 const inputField=(id,label,value='',max=1000)=>`<label for="${e(id)}">${e(label)}</label><textarea id="${e(id)}" maxlength="${max}">${e(value)}</textarea>`;
 function previewView(route){return `<div class="coach-preview"><h3>${e(route.title)}</h3>${route.stages.map(s=>`<article><h4>${e(s.title)}</h4>${[['objective','学习目标'],['overview','概览'],['explanation','具体例子'],['deep','边界与应用'],['exercise','可选练习'],['rubric','自我核对']].map(([key,label])=>`<p><strong>${label}</strong><br>${e(s[key])}</p>`).join('')}<p>来源：${s.sources.map(x=>`<a href="${e(safeUrl(x.url))}" target="_blank" rel="noopener">${e(x.title)}</a>`).join(' · ')}</p></article>`).join('')}</div>`;}
 function shareView(session){
- if(session.mode==='openai')return '<p>这份 AI 草稿尚未人工核查，暂不提供对外分享。</p>';
+ if(['openai','deepseek'].includes(session.mode))return '<p>这份 AI 草稿尚未人工核查，暂不提供对外分享。</p>';
  return `<p>选择要分享的阶段。导出前可预览全部字段；不含个人目标描述、基础、记忆、反馈或练习回答。</p><div class="coach-share-options">${session.plan.stages.map(s=>`<label><input type="checkbox" data-share-stage="${e(s.id)}" ${!preview||preview.stages.some(x=>x.id===s.id)?'checked':''}> ${e(s.title)}</label>`).join('')}</div><button class="secondary" data-coach="preview">预览分享路线</button>${preview?`${previewView(preview)}<button class="primary" data-coach="export">下载这份分享文件</button>`:''}`;
 }
 export function coachPage(){
  const session=active(),coach=readState().coach;
  return `<section class="page-heading"><div><span class="eyebrow">GROW WITH UNDERSTANDING</span><h1>从你的目标开始<span class="blue">。</span></h1><p>把理解分成小步，让下一份内容回应你的反馈。</p></div></section>
- <div class="notice">成长实验 · ${available?'本机已配置 OpenAI，可主动请求生成草稿。':'当前可体验离线演示，尚未连接在线模型。'} ${busy?'正在检索并整理，请稍候…':''}</div>
+ <div class="notice">成长实验 · ${available?'本机已配置 DeepSeek，可基于三个专题的人工资料生成待核查草稿。':'当前可体验离线演示，尚未连接在线模型。'} ${busy?'正在整理，请稍候…':''}</div>
  <details class="panel coach-setup" ${session?'':'open'}><summary>开始一个新的成长实验</summary>
  <form id="coach-form">
- <label for="coach-example">离线示例路线</label><select id="coach-example">${COACH_EXAMPLES.map(x=>`<option value="${x.id}" ${formDraft.example===x.id?'selected':''}>${e(x.title)}</option>`).join('')}</select>
- <p class="form-hint">离线模式使用人工编写的示例，不会依据自由输入生成专属知识；在线模式可输入其他目标。</p>
+ <label for="coach-example">选择专题资料</label><select id="coach-example">${COACH_EXAMPLES.map(x=>`<option value="${x.id}" ${formDraft.example===x.id?'selected':''}>${e(x.title)}</option>`).join('')}</select>
+ <p class="form-hint">离线模式使用人工编写的示例；DeepSeek 会在所选专题内根据你的目标与反馈调整内容。其他主题需要先补可靠资料。</p>
  ${inputField('coach-goal','这次你想获得什么变化？',formDraft.goal,200)}
  ${inputField('coach-baseline','你已经知道什么，或通常卡在哪里？',formDraft.baseline)}
  ${inputField('coach-preference','内容偏好（可选）',formDraft.preference)}
  <div class="coach-fields"><div><label for="coach-minutes">每次可用时间</label><select id="coach-minutes">${[5,10,20].map(n=>`<option value="${n}" ${String(n)===formDraft.minutes?'selected':''}>${n} 分钟</option>`).join('')}</select></div><div><label for="coach-depth">你想从哪个深度开始？</label><select id="coach-depth">${[['overview','先看概览'],['explanation','从具体例子开始'],['deep','直接看边界与应用']].map(([key,label])=>`<option value="${key}" ${formDraft.depth===key?'selected':''}>${label}</option>`).join('')}</select></div></div>
- <label for="coach-mode">内容来源</label><select id="coach-mode"><option value="offline" ${formDraft.mode==='offline'?'selected':''}>离线示例 · 规则调整</option>${available?`<option value="openai" ${formDraft.mode==='openai'?'selected':''}>OpenAI · 检索后生成草稿</option>`:''}</select>
- <label class="coach-consent"><input id="coach-consent" type="checkbox" ${formDraft.consent?'checked':''}> 在线生成时，将上面填写的目标、基础、偏好和时间发送至 OpenAI。</label>
+ <label for="coach-mode">内容来源</label><select id="coach-mode"><option value="offline" ${formDraft.mode==='offline'?'selected':''}>离线示例 · 规则调整</option>${available?`<option value="deepseek" ${formDraft.mode==='deepseek'?'selected':''}>DeepSeek · 基于专题资料生成草稿</option>`:''}</select>
+ <label class="coach-consent"><input id="coach-consent" type="checkbox" ${formDraft.consent?'checked':''}> 在线生成时，将上面填写的目标、基础、偏好、时间和所选专题发送至 DeepSeek。</label>
  <p class="form-hint">离线模式无需勾选。模型内容需核对来源；练习不强制，也不做能力评级。</p>
  <button class="primary" type="submit" ${busy?'disabled':''}>${busy?'正在准备…':'准备我的第一步'}</button>
  <label for="coach-import">或用别人分享的路线开始</label><input id="coach-import" type="file" accept=".json,application/json"><p class="form-hint">先填写你自己的目标和基础。导入创建独立记录，不继承别人的进度。分享内容由分享者提供，请核对来源。</p>
  </form></details>
  ${session?`<label for="coach-session">我的成长实验</label><select id="coach-session">${coach.sessions.map(s=>`<option value="${s.id}" ${s.id===session.id?'selected':''}>${e(s.goal)}</option>`).join('')}</select>
- <section class="goal-hero"><span class="eyebrow">${session.mode==='openai'?'AI 草稿 · 未经人工核查':session.mode==='shared'?'分享路线副本 · 来源需自行核对':'离线示例 · 人工内容 + 规则调整'}</span><h2>${e(session.plan.title)}</h2><p>${e(nextReason(session))}</p></section>
+ <section class="goal-hero"><span class="eyebrow">${['openai','deepseek'].includes(session.mode)?'AI 草稿 · 未经人工核查':session.mode==='shared'?'分享路线副本 · 来源需自行核对':'离线示例 · 人工内容 + 规则调整'}</span><h2>${e(session.plan.title)}</h2><p>${e(nextReason(session))}</p></section>
  <ol class="coach-route">${session.plan.stages.map((s,i)=>`<li ${i===session.position?'aria-current="step"':''}>${e(s.title)}${i===session.position?' · 当前':''}</li>`).join('')}</ol>
  ${stepView(session)}
  <div class="profile-grid"><section class="panel"><h2>我明确告诉 Upigo 的</h2><p>这些信息只属于这个目标。编辑即可纠正，清空后保存即可删除。</p>${session.memories.map(m=>`<div class="coach-memory">${inputField(`memory-${m.id}`,m.kind==='explicit'?'明确表达':'待你确认的推测',memoryDrafts.get(`${session.id}/${m.id}`)??m.text)}<button class="text-button" data-coach="memory" data-id="${e(m.id)}">保存修改</button></div>`).join('')||'<p>当前没有记忆。</p>'}<p class="form-hint">不会把没点击、跳过或一次答题，自动变成性格或能力标签。</p></section>
  <section class="panel"><h2>本轮留下的证据</h2>${session.events.map(ev=>`<div class="memory-item">${e(session.plan.stages.find(s=>s.id===ev.stageId)?.title)}<small>${e(SIGNALS[ev.signal])} · 用户自报${ev.answer?' · 含私人整理':''}</small>${ev.answer?`<details><summary>回看我的整理</summary><p class="coach-prose">${e(ev.answer)}</p></details>`:''}</div>`).join('')||'<p>还没有反馈，不推测你的掌握情况。</p>'}<p>明确表达、行为记录、待确认判断分开保存。本版只用你的明确反馈调整路线。</p><button class="secondary" data-coach="pause">${session.paused?'继续这条路线':'暂停这条路线'}</button></section></div>
- <details class="panel"><summary>按当前反馈，请 AI 准备新的后续路线</summary><p>会发送本目标、时间、目前保留的明确记忆、最近 6 条反馈的阶段名称和选项；不会发送练习回答或其他目标。新路线独立保存，原来的记录保留。</p><label class="coach-consent"><input id="coach-adapt-consent" type="checkbox"> 我确认将这些信息发送至 OpenAI。</label><button class="secondary" data-coach="adapt" ${!available||busy?'disabled':''}>${available?'准备后续路线':'需先配置本机 OpenAI 服务'}</button></details>
+ <details class="panel"><summary>按当前反馈，请 AI 准备新的后续路线</summary><p>会发送本目标、时间、目前保留的明确记忆、最近 6 条反馈的阶段名称和选项，以及所选专题；不会发送练习回答或其他目标。新路线独立保存，原来的记录保留。</p><label class="coach-consent"><input id="coach-adapt-consent" type="checkbox"> 我确认将这些信息发送至 DeepSeek。</label><button class="secondary" data-coach="adapt" ${!available||busy||!session.sourcePack?'disabled':''}>${!session.sourcePack?'该旧路线没有可用的专题资料':available?'准备后续路线':'需先配置本机 DeepSeek 服务'}</button></details>
  <details class="panel"><summary>分享这条成长路线</summary>${shareView(session)}</details>`:'<div class="empty"><h2>先从一个真实的小目标开始</h2><p>可以是看懂风景、改善手机摄影，或理解一个科技话题。</p></div>'}
  <p class="form-hint">记录沿用本机或当前浏览器存储，可在“我的偏好”导出 Markdown 备份。分享文件是手动传递的路线模板，尚无社区或云同步。</p>`;
 }
@@ -72,9 +72,9 @@ export function initCoach({getState,commit,render,toast}){
   try{const input=formInput(),mode=document.getElementById('coach-mode').value,depth=document.getElementById('coach-depth').value;
    const sample=COACH_EXAMPLES.find(x=>x.id===document.getElementById('coach-example').value);
    // Validate user input before incurring a model request.
-   const session=createSession(input,sample.plan);
-   if(mode==='openai'){const consent=document.getElementById('coach-consent').checked;if(!consent)throw new Error('在线生成前，请确认发送信息');session.plan=await generate({...input,consent});session.mode='openai';}
-   session.depth=depth;await add(session);notify(mode==='openai'?'已保存待核查的 AI 路线':'已准备离线示例路线');
+   const session=createSession({...input,sourcePack:sample.id},sample.plan);
+   if(mode==='deepseek'){const consent=document.getElementById('coach-consent').checked;if(!consent)throw new Error('在线生成前，请确认发送信息');session.plan=await generate({...input,sourcePack:sample.id,consent});session.mode='deepseek';}
+   session.depth=depth;await add(session);notify(mode==='deepseek'?'已保存待核查的 AI 路线':'已准备离线示例路线');
   }catch(error){notify(error.message);}
  });
  document.addEventListener('change',async event=>{try{
@@ -94,8 +94,8 @@ export function initCoach({getState,commit,render,toast}){
    if(b.dataset.coach==='export'&&preview){const url=URL.createObjectURL(new Blob([JSON.stringify(preview,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='upigo-shared-route.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
    if(b.dataset.coach==='adapt'){
     if(!document.getElementById('coach-adapt-consent').checked)throw new Error('请先确认发送范围');
-    const context=modelInput(session),input={goal:context.goal,minutes:context.minutes,baseline:context.memories.map(m=>m.text).join('\n').slice(0,1000)||'用户未提供基础，不作推断',preference:'',feedback:context.feedback,consent:true};
-    const plan=await generate(input);await add(createSession(input,plan,'openai'));notify('已创建新的后续路线，原记录保留');
+    const context=modelInput(session),input={goal:context.goal,minutes:context.minutes,baseline:context.memories.map(m=>m.text).join('\n').slice(0,1000)||'用户未提供基础，不作推断',preference:'',feedback:context.feedback,sourcePack:session.sourcePack,consent:true};
+    const plan=await generate(input);await add(createSession(input,plan,'deepseek'));notify('已创建新的后续路线，原记录保留');
    }
   }catch(error){notify(error.message);}
  });

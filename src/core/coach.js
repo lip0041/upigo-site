@@ -20,16 +20,17 @@ export function createSession(input,plan,mode='offline'){
  requireValue(str(input.goal,200)&&str(input.baseline,1000),'请说明目标和当前基础');
  requireValue(Number.isInteger(input.minutes)&&input.minutes>=5&&input.minutes<=60,'每次时间应为 5—60 分钟');
  requireValue(typeof input.preference==='string'&&input.preference.length<=1000,'偏好过长');
- requireValue(['offline','openai','shared'].includes(mode),'提供方无效');validatePlan(plan);
+ requireValue(['offline','openai','deepseek','shared'].includes(mode),'提供方无效');validatePlan(plan);
  return {id:`coach-${crypto.randomUUID()}`,goal:input.goal.trim(),minutes:input.minutes,mode,plan:structuredClone(plan),
-  memories:[{id:'baseline',text:input.baseline.trim(),kind:'explicit'},...(input.preference.trim()?[{id:'preference',text:input.preference.trim(),kind:'explicit'}]:[])],events:[],position:0,depth:'overview',paused:false};
+  sourcePack:input.sourcePack||null,memories:[{id:'baseline',text:input.baseline.trim(),kind:'explicit'},...(input.preference.trim()?[{id:'preference',text:input.preference.trim(),kind:'explicit'}]:[])],events:[],position:0,depth:'overview',paused:false};
 }
 export function validateCoach(coach){
  requireValue(coach&&coach.version===1&&list(coach.sessions,0,30),'成长记录版本或数量无效');
  const ids=new Set();
  for(const s of coach.sessions){
   requireValue(s&&/^coach-[a-z0-9-]+$/.test(s.id)&&!ids.has(s.id),'成长记录标识无效');ids.add(s.id);
-  requireValue(str(s.goal,200)&&Number.isInteger(s.minutes)&&s.minutes>=5&&s.minutes<=60&&['offline','openai','shared'].includes(s.mode),'成长目标无效');
+  requireValue(str(s.goal,200)&&Number.isInteger(s.minutes)&&s.minutes>=5&&s.minutes<=60&&['offline','openai','deepseek','shared'].includes(s.mode),'成长目标无效');
+  requireValue(s.sourcePack===undefined||s.sourcePack===null||/^[a-z][a-z0-9-]{0,60}$/.test(s.sourcePack),'专题资料标识无效');
   validatePlan(s.plan);
   requireValue(Number.isInteger(s.position)&&s.position>=0&&s.position<=s.plan.stages.length&&['overview','explanation','deep'].includes(s.depth)&&typeof s.paused==='boolean','成长阶段无效');
   requireValue(list(s.memories,0,20)&&list(s.events,0,100),'记忆或反馈过多');
@@ -73,7 +74,7 @@ export function modelInput(session){
 }
 // A public template is an explicit whitelist, never a serialized workspace.
 export function shareTemplate(session,selected){
- requireValue(session.mode!=='openai','AI 草稿尚未人工核查，暂不支持对外分享');
+ requireValue(!['openai','deepseek'].includes(session.mode),'AI 草稿尚未人工核查，暂不支持对外分享');
  const stages=session.plan.stages.filter(s=>selected.includes(s.id));requireValue(stages.length>=2,'请选择至少两个阶段');
  return {kind:'upigo-route',version:1,title:session.plan.title,stages:stages.map(s=>({id:s.id,title:s.title,objective:s.objective,overview:s.overview,explanation:s.explanation,deep:s.deep,exercise:s.exercise,rubric:s.rubric,sources:s.sources.map(x=>({title:x.title,url:x.url}))}))};
 }
