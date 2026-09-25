@@ -32,6 +32,7 @@ export function validateCoach(coach){
   requireValue(str(s.goal,200)&&Number.isInteger(s.minutes)&&s.minutes>=5&&s.minutes<=60&&['offline','openai','deepseek','shared'].includes(s.mode),'成长目标无效');
   requireValue(s.sourcePack===undefined||s.sourcePack===null||/^[a-z][a-z0-9-]{0,60}$/.test(s.sourcePack),'专题资料标识无效');
   validatePlan(s.plan);
+  requireValue(s.history===undefined||list(s.history,0,6)&&s.history.every(h=>h&&str(h.stage,120)&&Object.hasOwn(SIGNALS,h.signal)&&typeof h.explanation==='string'&&h.explanation.length<=1200),'历史反馈无效');
   requireValue(Number.isInteger(s.position)&&s.position>=0&&s.position<=s.plan.stages.length&&['overview','explanation','deep'].includes(s.depth)&&typeof s.paused==='boolean','成长阶段无效');
   requireValue(list(s.memories,0,20)&&list(s.events,0,100),'记忆或反馈过多');
   const mids=new Set();
@@ -69,7 +70,7 @@ export function updateMemory(session,id,value){
 // Never send notes, exercise answers, unrelated goals or unconfirmed hypotheses.
 export function modelInput(session){
  return {goal:session.goal,minutes:session.minutes,memories:session.memories.filter(m=>m.kind==='explicit').map(m=>({text:m.text,kind:m.kind})),
-  feedback:session.events.slice(-6).map(ev=>({stage:session.plan.stages.find(s=>s.id===ev.stageId).title,signal:ev.signal})),
+  feedback:[...(session.history||[]).map(h=>({stage:h.stage,signal:h.signal,explanation:h.explanation})),...session.events.map(ev=>{const stage=session.plan.stages.find(s=>s.id===ev.stageId);return {stage:stage.title,signal:ev.signal,explanation:stage.explanation.slice(0,1200)};})].slice(-6),
   previousStages:session.plan.stages.map(s=>s.title)};
 }
 // A public template is an explicit whitelist, never a serialized workspace.
@@ -84,4 +85,15 @@ export function importTemplate(raw,input){
  // Strip unknown fields and create fresh personal progress.
  const clean=shareTemplate({mode:'shared',plan:raw},raw.stages.map(s=>s.id));
  return createSession(input,{title:clean.title,stages:clean.stages},'shared');
+}
+
+export function followupRequest(session){
+ const context=modelInput(session);
+ return {...context,baseline:'以保留的明确记忆为准；没有记录就不作推断',preference:'',sourcePack:session.sourcePack,consent:true};
+}
+export function createFollowupSession(session,plan){
+ const next=createSession(followupRequest(session),plan,'deepseek');
+ next.memories=structuredClone(session.memories.filter(m=>m.kind==='explicit'));
+ next.history=modelInput(session).feedback;
+ return next;
 }

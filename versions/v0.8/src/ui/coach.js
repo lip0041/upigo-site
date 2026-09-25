@@ -1,5 +1,5 @@
 import {COACH_EXAMPLES} from '../core/coach-examples.js';
-import {createSession,applySignal,nextReason,updateMemory,modelInput,shareTemplate,importTemplate,SIGNALS} from '../core/coach.js';
+import {createSession,applySignal,nextReason,updateMemory,followupRequest,createFollowupSession,shareTemplate,importTemplate,SIGNALS} from '../core/coach.js';
 import {escapeHtml as e,safeUrl} from '../core/markdown.js';
 
 let readState,save,refresh,notify,available=false,busy=false,preview=null;
@@ -37,7 +37,7 @@ export function coachPage(){
  ${stepView(session)}
  <div class="profile-grid"><section class="panel"><h2>我明确告诉 Upigo 的</h2><p>这些信息只属于这个目标。编辑即可纠正，清空后保存即可删除。</p>${session.memories.map(m=>`<div class="coach-memory">${inputField(`memory-${m.id}`,m.kind==='explicit'?'明确表达':'待你确认的推测',memoryDrafts.get(`${session.id}/${m.id}`)??m.text)}<button class="text-button" data-coach="memory" data-id="${e(m.id)}">保存修改</button></div>`).join('')||'<p>当前没有记忆。</p>'}<p class="form-hint">不会把没点击、跳过或一次答题，自动变成性格或能力标签。</p></section>
  <section class="panel"><h2>本轮留下的证据</h2>${session.events.map(ev=>`<div class="memory-item">${e(session.plan.stages.find(s=>s.id===ev.stageId)?.title)}<small>${e(SIGNALS[ev.signal])} · 用户自报${ev.answer?' · 含私人整理':''}</small>${ev.answer?`<details><summary>回看我的整理</summary><p class="coach-prose">${e(ev.answer)}</p></details>`:''}</div>`).join('')||'<p>还没有反馈，不推测你的掌握情况。</p>'}<p>明确表达、行为记录、待确认判断分开保存。本版只用你的明确反馈调整路线。</p><button class="secondary" data-coach="pause">${session.paused?'继续这条路线':'暂停这条路线'}</button></section></div>
- <details class="panel"><summary>按当前反馈，请 AI 准备新的后续路线</summary><p>会发送本目标、时间、目前保留的明确记忆、最近 6 条反馈的阶段名称和选项，以及所选专题；不会发送练习回答或其他目标。新路线独立保存，原来的记录保留。</p><label class="coach-consent"><input id="coach-adapt-consent" type="checkbox"> 我确认将这些信息发送至 DeepSeek。</label><button class="secondary" data-coach="adapt" ${!available||busy||!session.sourcePack?'disabled':''}>${!session.sourcePack?'该旧路线没有可用的专题资料':available?'准备后续路线':'需先配置本机 DeepSeek 服务'}</button></details>
+ <details class="panel"><summary>按当前反馈，请 AI 准备新的后续路线</summary><p>会发送本目标、时间、目前保留的明确记忆、最近 6 条反馈的阶段名称、选项和先前讲解片段，以及所选专题；不会发送练习回答或其他目标。新路线独立保存，原来的记录保留。</p><label class="coach-consent"><input id="coach-adapt-consent" type="checkbox"> 我确认将这些信息发送至 DeepSeek。</label><button class="secondary" data-coach="adapt" ${!available||busy||!session.sourcePack?'disabled':''}>${!session.sourcePack?'该旧路线没有可用的专题资料':available?'准备后续路线':'需先配置本机 DeepSeek 服务'}</button></details>
  <details class="panel"><summary>分享这条成长路线</summary>${shareView(session)}</details>`:'<div class="empty"><h2>先从一个真实的小目标开始</h2><p>可以是看懂风景、改善手机摄影，或理解一个科技话题。</p></div>'}
  <p class="form-hint">记录沿用本机或当前浏览器存储，可在“我的偏好”导出 Markdown 备份。分享文件是手动传递的路线模板，尚无社区或云同步。</p>`;
 }
@@ -94,8 +94,8 @@ export function initCoach({getState,commit,render,toast}){
    if(b.dataset.coach==='export'&&preview){const url=URL.createObjectURL(new Blob([JSON.stringify(preview,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='upigo-shared-route.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
    if(b.dataset.coach==='adapt'){
     if(!document.getElementById('coach-adapt-consent').checked)throw new Error('请先确认发送范围');
-    const context=modelInput(session),input={goal:context.goal,minutes:context.minutes,baseline:context.memories.map(m=>m.text).join('\n').slice(0,1000)||'用户未提供基础，不作推断',preference:'',feedback:context.feedback,sourcePack:session.sourcePack,consent:true};
-    const plan=await generate(input);await add(createSession(input,plan,'deepseek'));notify('已创建新的后续路线，原记录保留');
+    const input=followupRequest(session);
+    const plan=await generate(input);await add(createFollowupSession(session,plan));notify('已创建新的后续路线，原记录保留');
    }
   }catch(error){notify(error.message);}
  });
